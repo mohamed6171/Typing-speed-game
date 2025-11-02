@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>لعبة سرعة الكتابة — 3 مستويات</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --muted:#94a3b8; --accent:#60a5fa;
+    --easy1:#10b981; --med1:#f59e0b; --hard1:#ef4444;
+    --glass: rgba(255,255,255,0.03);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  }
+  html,body{margin:0;background:linear-gradient(180deg,#071029 0%, #071a2f 100%);color:#e6eef8}
+  .container{max-width:auto;margin:28px auto;padding:20px;}
+  header{display:flex;gap:16px;align-items:center;justify-content:space-between}
+  h1{margin:0;font-size:20px}
+  p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+  .levels{display:flex;gap:8px}
+  .level-btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;background:transparent;color:var(--muted);font-weight:600}
+  .level-btn.active{background:#fff;color:#071029}
+  .layout{display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:16px}
+  /* left column */
+  .stages{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .stage{aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,0.03)}
+  .stage.locked{filter:grayscale(60%);opacity:0.45;cursor:not-allowed}
+  .stage.done{background:linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));box-shadow:0 6px 12px rgba(2,6,23,0.6);color:#d1fae5}
+  .stage.done::after{content:'✓';position:absolute;margin-top:36px;font-size:11px;color:#10b981}
+  .small{font-size:13px;color:var(--muted)}
+  .controls{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .btn{padding:8px 12px;border-radius:10px;border:0;cursor:pointer;background:var(--accent);color:#07203a;font-weight:700}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+  /* right column */
+  .play-area{display:flex;flex-direction:column;gap:12px}
+  .card{padding:16px;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03)}
+  .target{font-size:20px;line-height:1.6;padding:12px;border-radius:8px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));min-height:80px}
+  .input{width:80%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:16px}
+  .meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .pill{padding:6px 10px;border-radius:999px;background:var(--glass);font-size:13px}
+  .meter{height:10px;background:rgba(255,255,255,0.03);border-radius:999px;overflow:hidden}
+  .meter > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);width:0%}
+  .result{display:flex;gap:12px;align-items:center}
+  .success{color:#34d399;font-weight:700}
+  .fail{color:#fb7185;font-weight:700}
+  footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+  /* responsive */
+  @media (max-width:880px){ .layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>Typing speed game</h1>
+      <p class="lead">Three levels — 25 stages each — test your typing speed and accuracy!</p>
+    </div>
+    <div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="small">Level:</div>
+        <div class="levels panel" id="levelsWrap" style="padding:6px">
+          <button class="level-btn active" data-level="easy">Easy</button>
+          <button class="level-btn" data-level="medium">Medium</button>
+          <button class="level-btn" data-level="hard">Hard</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- left: stages -->
+    <div>
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">Stages —<span id="levelLabel">Easy</span></h3>
+        <div class="stages" id="stagesGrid"></div>
+
+        <div class="controls">
+          <button class="btn" id="btnStart">Start Stage</button>
+          <button class="btn ghost" id="btnReset">Reset Progress</button>
+          <button class="btn ghost" id="btnShare">Copy Link</button>
+        </div>
+
+        <div style="margin-top:10px" class="small">
+          Open until:<strong id="unlockedInfo">Stage 1</strong>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px"><div class="small">Quick Statistics:</div>
+        <div style="margin-top:8px" class="meta">
+          <div class="pill">Overall Success Rate: <span id="globalSuccess">0%</span></div>
+          <div class="pill">Best WPM: <span id="bestWPM">0</span></div>
+          <div class="pill">Best Accuracy: <span id="bestAcc">0%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- right: play area -->
+    <div class="play-area">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong>Stage <span id="curStage">1</span></strong>
+            <div class="small">Level:<span id="curLevelLabel">Easy</span></div>
+          </div>
+          <div style="text-align:right">
+            <div class="pill">Remaining Time:<strong id="timeLeft">--</strong>s</div>
+            <div style="height:6px;margin-top:6px;width:140px" class="meter"><i id="timeMeter"></i></div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="target" id="targetText">Click "Start Level" to begin the game.</div>
+
+        <div style="margin-top:10px" class="meta">
+          <div style="flex:1">
+            <input id="typingInput" class="input" placeholder="Type here..." disabled autocomplete="off" autocorrect="off" autocapitalize="off" />
+          </div>
+          <div style="min-width:160px">
+            <div class="small">Score: <strong id="score">0</strong></div>
+            <div class="small">Speed (WPM): <strong id="wpm">0</strong></div>
+            <div class="small">Accuracy: <strong id="accuracy">0%</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="stageResult" style="display:none">
+        <div id="resultMsg" class="result"></div>
+        <div style="margin-top:8px" class="small">You will be redirected to the next stage upon success.</div>
+      </div>
+
+      <div class="card">
+        <h4 style="margin:0 0 8px 0">How to Play</h4>
+        <ul class="small" style="margin:0 0 0 14px;padding:0 0 0 0;line-height:1.6">
+          <li>Click on a level (or press "Start Level").</li>
+          <li>A short phrase will appear — type it quickly and as accurately as possible.</li>
+          <li>Each level has a time limit. Pass it if you reach the required accuracy.</li>
+          <li>Levels unlock automatically upon success. Progress is saved in the browser.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer class="small">Arabic interface design — texts, sounds, or difficulty level can be customized later.</footer>
+</div>
+
+<script>
+/* ---- Config and state ---- */
+const LEVELS = [
+  { id:'easy', label:'Easy', passAcc:0.70, timeBase:28, color:'#10b981' },
+  { id:'medium', label:'Medium', passAcc:0.78, timeBase:22, color:'#f59e0b' },
+  { id:'hard', label:'Hard', passAcc:0.86, timeBase:16, color:'#ef4444' },
+];
+const TOTAL_STAGES = 25;
+
+const STORAGE_UNLOCK = 'typing_game_unlocked_v1';
+const STORAGE_DONE   = 'typing_game_done_v1';
+const STORAGE_STATS  = 'typing_game_stats_v1';
+
+let state = {
+  level: 'easy',
+  stage: 1,
+  unlocked: {}, // {easy:1, medium:0, hard:0}
+  done: {}, // keys like 'easy-1': {wpm,acc,ts}
+  running: false,
+  timeLeft:0,
+  timerInterval: null,
+  startTime: null,
+  typedCharsAtStart: 0
+};
+
+/* ---- Utility: simple word bank, sentence generator ---- */
+const WORDS = [
+'moon','sun','programming','computer','key','window','pen','book','city','sky',  
+'sea','tree','rose','friend','game','speed','accuracy','challenge','code','future',  
+'technology','phone','music','sound','image','information','education','project','application','browser'
+];
+
+function genSentence(levelId, stageNum){
+  // increase length with level+stage
+  const baseCount = (levelId==='easy')?4:(levelId==='medium')?6:8;
+  const extra = Math.min(10, Math.floor(stageNum/3));
+  const count = baseCount + extra;
+  // random choose words and join with spaces; occasionally add punctuation
+  const parts = [];
+  for(let i=0;i<count;i++){
+    const w = WORDS[Math.floor(Math.random()*WORDS.length)];
+    parts.push(w);
+  }
+  let s = parts.join(' ');
+  // add a comma or period sometimes
+  if(Math.random()<0.35) s = s.replace(' ','، ') + '.';
+  return s;
+}
+
+/* ---- Persistence ---- */
+function loadProgress(){
+  try{
+    const u = JSON.parse(localStorage.getItem(STORAGE_UNLOCK)) || {easy:1,medium:0,hard:0};
+    const d = JSON.parse(localStorage.getItem(STORAGE_DONE)) || {};
+    const stats = JSON.parse(localStorage.getItem(STORAGE_STATS)) || {bestWPM:0,bestAcc:0,total:0,success:0};
+    state.unlocked = u; state.done = d; state.stats = stats;
+  }catch(e){ state.unlocked = {easy:1,medium:0,hard:0}; state.done={}; state.stats={bestWPM:0,bestAcc:0,total:0,success:0}; }
+}
+function saveProgress(){
+  localStorage.setItem(STORAGE_UNLOCK, JSON.stringify(state.unlocked));
+  localStorage.setItem(STORAGE_DONE, JSON.stringify(state.done));
+  localStorage.setItem(STORAGE_STATS, JSON.stringify(state.stats));
+}
+
+/* ---- UI references ---- */
+const levelsWrap = document.getElementById('levelsWrap');
+const stagesGrid = document.getElementById('stagesGrid');
+const levelLabel = document.getElementById('levelLabel');
+const curLevelLabel = document.getElementById('curLevelLabel');
+const unlockedInfo = document.getElementById('unlockedInfo');
+const btnStart = document.getElementById('btnStart');
+const btnReset = document.getElementById('btnReset');
+const btnShare = document.getElementById('btnShare');
+
+const targetText = document.getElementById('targetText');
+const typingInput = document.getElementById('typingInput');
+const timeLeftEl = document.getElementById('timeLeft');
+const timeMeter = document.getElementById('timeMeter');
+const scoreEl = document.getElementById('score');
+const wpmEl = document.getElementById('wpm');
+const accEl = document.getElementById('accuracy');
+const curStageEl = document.getElementById('curStage');
+
+const stageResultCard = document.getElementById('stageResult');
+const resultMsg = document.getElementById('resultMsg');
+
+const globalSuccess = document.getElementById('globalSuccess');
+const bestWPM = document.getElementById('bestWPM');
+const bestAcc = document.getElementById('bestAcc');
+
+/* ---- Initialization ---- */
+loadProgress();
+renderLevels();
+renderStages();
+updateStatsUI();
+
+/* ---- Event handlers ---- */
+levelsWrap.addEventListener('click', e=>{
+  const btn = e.target.closest('.level-btn');
+  if(!btn) return;
+  const level = btn.dataset.level;
+  setLevel(level);
+});
+
+btnStart.addEventListener('click', ()=> startStage(state.stage));
+btnReset.addEventListener('click', resetProgress);
+btnShare.addEventListener('click', ()=>{
+  const url = location.href.split('#')[0] + '#l=' + state.level + '&s=' + state.stage;
+  navigator.clipboard?.writeText(url).then(()=>alert('Game link copied!'));
+});
+
+/* allow direct link to level/stage */
+(function checkHash(){
+  const h = location.hash.slice(1);
+  if(!h) return;
+  const params = new URLSearchParams(h.replace(/&/g,'&'));
+  const l = params.get('l'); const s = parseInt(params.get('s'));
+  if(l && ['easy','medium','hard'].includes(l)){ setLevel(l); if(s && s>=1 && s<=25) state.stage = s; updateUI(); }
+})();
+
+/* ---- Render functions ---- */
+function renderLevels(){
+  document.querySelectorAll('.level-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.level === state.level);
+  });
+  levelLabel.textContent = LEVELS.find(l=>l.id===state.level).label;
+  curLevelLabel.textContent = LEVELS.find(l=>l.id===state.level).label;
+}
+function renderStages(){
+  stagesGrid.innerHTML = '';
+  const unlocked = state.unlocked[state.level] || 0;
+  for(let i=1;i<=TOTAL_STAGES;i++){
+    const btn = document.createElement('button');
+    btn.className = 'stage panel';
+    btn.textContent = i;
+    if(i > unlocked) btn.classList.add('locked');
+    if(state.done[`${state.level}-${i}`]) btn.classList.add('done');
+    btn.addEventListener('click', ()=> {
+      if(i > unlocked){ alert('This level is locked. Complete previous levels to unlock it.'); return; }
+      state.stage = i; updateUI(); startStage(i);
+    });
+    stagesGrid.appendChild(btn);
+  }
+  unlockedInfo.textContent = 'Stage ' + (state.unlocked[state.level]||0);
+}
+
+/* ---- Game flow ---- */
+function setLevel(levelId){
+  state.level = levelId; renderLevels(); renderStages(); updateUI();
+}
+function updateUI(){
+  renderLevels();
+  renderStages();
+  curStageEl.textContent = state.stage;
+  // prepare target
+  const s = genSentence(state.level, state.stage);
+  targetText.textContent = 'Press "Start Level" to begin: ' + s;
+  typingInput.value = '';
+  typingInput.disabled = true;
+  timeLeftEl.textContent = '--';
+  timeMeter.style.width = '0%';
+  scoreEl.textContent = '0';
+  wpmEl.textContent = '0';
+  accEl.textContent = '0%';
+  stageResultCard.style.display = 'none';
+}
+updateUI();
+
+/* main start */
+function startStage(stageNum){
+  if(state.running) return;
+  // prepare sentence and timers
+  const levelCfg = LEVELS.find(l=>l.id===state.level);
+  const sentence = genSentence(state.level, stageNum);
+  targetText.textContent = sentence;
+  typingInput.value = '';
+  typingInput.disabled = false;
+  typingInput.focus();
+  state.running = true;
+  state.startTime = Date.now();
+  state.typedCharsAtStart = 0;
+  // time depends on base minus small increment by stage
+  const timeLimit = Math.max(8, levelCfg.timeBase - Math.floor(stageNum/6));
+  state.timeLeft = timeLimit;
+  timeLeftEl.textContent = state.timeLeft;
+  updateTimeMeter();
+
+  // live tracking
+  typingInput.oninput = handleTyping;
+
+  // interval countdown
+  state.timerInterval = setInterval(()=>{
+    state.timeLeft--;
+    if(state.timeLeft<=0){
+      endStage(false);
+    }
+    timeLeftEl.textContent = state.timeLeft;
+    updateTimeMeter();
+  }, 1000);
+}
+
+/* typing logic */
+function handleTyping(){
+  const typed = typingInput.value;
+  const target = targetText.textContent;
+  // compute accuracy: compare char by char
+  let correct=0;
+  for(let i=0;i<typed.length;i++){
+    if(i < target.length && typed[i] === target[i]) correct++;
+  }
+  const acc = (typed.length === 0) ? 0 : (correct / typed.length);
+  accEl.textContent = Math.round(acc*100) + '%';
+
+  // compute WPM (words per minute) using chars typed / 5 / minutes elapsed
+  const elapsedMin = Math.max( (Date.now() - state.startTime) / 60000 , 0.001);
+  const wpm = Math.round((typed.length / 5) / elapsedMin);
+  wpmEl.textContent = wpm;
+
+  // If typed matches full target exactly -> success
+  if(typed === target){
+    // success threshold (must also satisfy accuracy threshold which will be true if exact)
+    endStage(true, {wpm,acc});
+  }
+}
+
+/* update progress bar */
+function updateTimeMeter(){
+  const levelCfg = LEVELS.find(l=>l.id===state.level);
+  const maxT = Math.max(8, levelCfg.timeBase - Math.floor(state.stage/6));
+  const pct = Math.max(0, Math.min(100, Math.round((state.timeLeft / maxT)*100)));
+  timeMeter.style.width = pct + '%';
+}
+
+/* end stage: success boolean */
+function endStage(success, metrics){
+  clearInterval(state.timerInterval); state.timerInterval = null; state.running = false;
+  typingInput.oninput = null;
+  typingInput.disabled = true;
+
+  const target = targetText.textContent;
+  const typed = typingInput.value;
+  const elapsedSec = Math.max(1, Math.round((Date.now() - state.startTime)/1000));
+  const typedLen = typed.length;
+  // compute accuracy and wpm robustly
+  let correct=0;
+  for(let i=0;i<typed.length;i++){ if(i<target.length && typed[i]===target[i]) correct++; }
+  const acc = typedLen===0?0: correct/typedLen;
+  const wpm = Math.round((typedLen/5) / (elapsedSec/60));
+
+  // decide success if success===true OR accuracy>=threshold and typed covers at least 90% of target length
+  const cfg = LEVELS.find(l=>l.id===state.level);
+  const coverage = target.length===0?0: Math.min(1, typedLen/target.length);
+  const meets = (acc >= cfg.passAcc && coverage >= 0.9) || (typed === target);
+
+  const passed = success || meets;
+
+  // store result
+  state.done[`${state.level}-${state.stage}`] = {wpm,acc:Math.round(acc*100),ts:Date.now(),passed:passed};
+  // update stats
+  state.stats.total = (state.stats.total||0) + 1;
+  if(passed) state.stats.success = (state.stats.success||0) + 1;
+  state.stats.bestWPM = Math.max(state.stats.bestWPM||0, wpm);
+  state.stats.bestAcc = Math.max(state.stats.bestAcc||0, Math.round(acc*100));
+  // unlock next
+  if(passed){
+    const nextStage = state.stage + 1;
+    if(nextStage <= TOTAL_STAGES){
+      state.unlocked[state.level] = Math.max(state.unlocked[state.level]||0, nextStage);
+    } else {
+      // unlock first stage of next level
+      const idx = LEVELS.findIndex(l=>l.id===state.level);
+      if(LEVELS[idx+1]) state.unlocked[LEVELS[idx+1].id] = Math.max(state.unlocked[LEVELS[idx+1].id]||0, 1);
+    }
+  }
+  saveProgress();
+  renderStages();
+  updateStatsUI();
+
+  // show result UI
+  stageResultCard.style.display = 'block';
+  resultMsg.innerHTML = '';
+  if(passed){
+    const el = document.createElement('div'); el.className = 'success';
+    el.textContent = `Success! — WPM: ${wpm} — Accuracy: ${Math.round(acc*100)}%`;
+    resultMsg.appendChild(el);
+    // auto proceed to next stage after short delay
+    setTimeout(()=> {
+      // go to next unlocked stage
+      if(state.unlocked[state.level] >= state.stage+1){
+        state.stage = Math.min(TOTAL_STAGES, state.stage+1);
+      } else {
+        // if last stage done, maybe move to next level first unlocked stage
+        const idx = LEVELS.findIndex(l=>l.id===state.level);
+        if(state.unlocked[LEVELS[idx+1]?.id]) state.level = LEVELS[idx+1].id, state.stage = 1;
+      }
+      updateUI();
+      stageResultCard.style.display = 'none';
+    }, 1100);
+  } else {
+    const el = document.createElement('div'); el.className = 'fail';
+    el.textContent = `Failed. WPM: ${wpm} — Accuracy: ${Math.round(acc*100)}%`;
+    resultMsg.appendChild(el);
+  }
+
+}
+
+/* ---- Reset progress ---- */
+function resetProgress(){
+  if(!confirm('Do you really want to reset your game progress and erase all results?')) return;
+  state.unlocked = {easy:1,medium:0,hard:0};
+  state.done = {};
+  state.stats = {bestWPM:0,bestAcc:0,total:0,success:0};
+  saveProgress();
+  renderStages();
+  updateStatsUI();
+  updateUI();
+}
+
+/* ---- Stats UI ---- */
+function updateStatsUI(){
+  const s = state.stats || {bestWPM:0,bestAcc:0,total:0,success:0};
+  bestWPM.textContent = s.bestWPM || 0;
+  bestAcc.textContent = (s.bestAcc || 0) + '%';
+  const succPct = s.total ? Math.round((s.success/s.total)*100) : 0;
+  globalSuccess.textContent = succPct + '%';
+}
+
+/* ensure UI updates correctly on load */
+window.addEventListener('load', ()=>{
+  // make sure default unlocked exists
+  state.unlocked = state.unlocked || {easy:1,medium:0,hard:0};
+  state.stats = state.stats || {bestWPM:0,bestAcc:0,total:0,success:0};
+  renderStages();
+  updateStatsUI();
+  updateUI();
+});
+</script>
+</body>
+</html>
